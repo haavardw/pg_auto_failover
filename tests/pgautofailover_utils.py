@@ -325,6 +325,10 @@ class DataNode(PGNode):
         else:
             print("%s didn't reach %s after %d attempts" %
                 (self.datadir, target_state, timeout))
+            for line in iter(self.pg_autoctl_run_proc.stdout.readline,''):
+                print (line + "\n")
+            for line in iter(self.pg_autoctl_run_proc.stderr.readline,''):
+                print (line + "\n")
             return False
 
     def get_state(self):
