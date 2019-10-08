@@ -26,6 +26,7 @@
 /* handle command line options for our setup. */
 KeeperConfig keeperOptions;
 bool allowRemovingPgdata = false;
+bool createAndRun = false;
 
 
 /*
@@ -49,6 +50,7 @@ bool allowRemovingPgdata = false;
  *		{ "disable-monitor", no_argument, NULL, 'M' },
  *		{ "allow-removing-pgdata", no_argument, NULL, 'R' },
  *		{ "help", no_argument, NULL, 0 },
+ *		{ "run", no_argument, NULL, 'r' },
  *		{ NULL, 0, NULL, 0 }
  *	};
  *
@@ -227,6 +229,14 @@ cli_create_node_getopts(int argc, char **argv,
 				break;
 			}
 
+			case 'r':
+			{
+				/* { "run", no_argument, NULL, 'r' }, */
+				createAndRun = true;
+				log_trace("--run");
+				break;
+			}
+
 			default:
 			{
 				/* getopt_long already wrote an error message */
@@ -260,6 +270,16 @@ cli_create_node_getopts(int argc, char **argv,
 		 * it.
 		 */
 		setenv("PGDATA", LocalOptionConfig.pgSetup.pgdata, 1);
+	}
+
+	/*
+	 * We have a PGDATA setting, prepare our configuration pathnames from it.
+	 */
+	if (!keeper_config_set_pathnames_from_pgdata(
+			&(LocalOptionConfig.pathnames), LocalOptionConfig.pgSetup.pgdata))
+	{
+		/* errors have already been logged */
+		exit(EXIT_CODE_BAD_ARGS);
 	}
 
 	/*
