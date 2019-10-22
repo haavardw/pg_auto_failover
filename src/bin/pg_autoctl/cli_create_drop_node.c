@@ -63,17 +63,22 @@ CommandLine create_postgres_command =
 	make_command("postgres",
 				 "Initialize a pg_auto_failover standalone postgres node",
 				 "",
-				 "  --pgctl       path to pg_ctl\n"
-				 "  --pgdata      path to data director\n"
-				 "  --pghost      PostgreSQL's hostname\n"
-				 "  --pgport      PostgreSQL's port number\n"
-				 "  --listen      PostgreSQL's listen_addresses\n"
-				 "  --username    PostgreSQL's username\n"
-				 "  --dbname      PostgreSQL's database name\n"
-				 "  --nodename    pg_auto_failover node\n"
-				 "  --formation   pg_auto_failover formation\n"
-				 "  --monitor     pg_auto_failover Monitor Postgres URL\n"
-				 "  --auth        authentication method for connections from monitor\n"
+				 "  --pgctl                       path to pg_ctl\n"
+				 "  --pgdata                      path to data director\n"
+				 "  --pghost                      PostgreSQL's hostname\n"
+				 "  --pgport                      PostgreSQL's port number\n"
+				 "  --listen                      PostgreSQL's listen_addresses\n"
+				 "  --username                    PostgreSQL's username\n"
+				 "  --dbname                      PostgreSQL's database name\n"
+				 "  --nodename                    pg_auto_failover node\n"
+				 "  --formation                   pg_auto_failover formation\n"
+				 "  --monitor                     pg_auto_failover Monitor Postgres URL\n"
+				 "  --auth                        authentication method for connections from monitor\n"
+				 "  --number-sync-stanbys         minimum number of standbys to confirm write. applicable to creating the first node of a formation.\n"
+				 "  --candidate-priority          priority of the node to be promoted to become primary\n"
+				 "  --enable-replication-quorum   node participates in write quorum\n"
+				 "  --disable-replication-quorum  node does not participate in write quorum\n"
+				 "  --replication-quorum          1 if node participates in write quorum 0 otherwise\n"
 				 KEEPER_CLI_ALLOW_RM_PGDATA_OPTION,
 				 cli_create_postgres_getopts,
 				 cli_create_postgres);
@@ -204,12 +209,17 @@ cli_create_postgres_getopts(int argc, char **argv)
 		{ "monitor", required_argument, NULL, 'm' },
 		{ "allow-removing-pgdata", no_argument, NULL, 'R' },
 		{ "help", no_argument, NULL, 0 },
+		{ "number-sync-stanbys", required_argument, NULL, 'S'},
+		{ "enable-replication-quorum", no_argument, NULL, 'Q'},
+		{ "disable-replication-quorum", no_argument, NULL, 'q'},
+		{ "candidate-priority", required_argument, NULL, 'P'},
+		{ "replication-quorum", required_argument, NULL, 'r'},
 		{ NULL, 0, NULL, 0 }
 	};
 
 	int optind =
 		cli_create_node_getopts(argc, argv,
-								long_options, "C:D:h:p:l:U:A:d:n:f:m:R",
+								long_options, "C:D:h:p:l:U:A:d:n:f:m:RQqP:r:",
 								&options);
 
 	/* publish our option parsing in the global variable */

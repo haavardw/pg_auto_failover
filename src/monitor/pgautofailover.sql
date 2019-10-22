@@ -38,30 +38,33 @@ CREATE TYPE pgautofailover.replication_state
 
 CREATE TABLE pgautofailover.formation
  (
-    formationid   text NOT NULL DEFAULT 'default',
-    kind          text NOT NULL DEFAULT 'pgsql',
-    dbname        name NOT NULL DEFAULT 'postgres',
-    opt_secondary bool NOT NULL DEFAULT true,
+    formationid   			text NOT NULL DEFAULT 'default',
+    kind          			text NOT NULL DEFAULT 'pgsql',
+    dbname        			name NOT NULL DEFAULT 'postgres',
+    opt_secondary 			bool NOT NULL DEFAULT true,
+    number_sync_standbys	int default 1,
     PRIMARY KEY   (formationid)
  );
 insert into pgautofailover.formation (formationid) values ('default');
 
 CREATE FUNCTION pgautofailover.create_formation
  (
-    IN formation_id  text,
-    IN kind          text,
-    IN dbname        name,
-    IN opt_secondary bool,
-   OUT formation_id  text,
-   OUT kind          text,
-   OUT dbname        name,
-   OUT opt_secondary bool
+    IN formation_id  		text,
+    IN kind          		text,
+    IN dbname        		name,
+    IN opt_secondary 		bool,
+    IN number_sync_standbys int,
+   OUT formation_id  		text,
+   OUT kind          		text,
+   OUT dbname        		name,
+   OUT opt_secondary 		bool,
+   OUT number_sync_standbys int
  )
 RETURNS record LANGUAGE C STRICT SECURITY DEFINER
 AS 'MODULE_PATHNAME', $$create_formation$$;
 
 grant execute on function
-      pgautofailover.create_formation(text,text,name,bool)
+      pgautofailover.create_formation(text,text,name,bool,int)
    to autoctl_node;
 
 CREATE FUNCTION pgautofailover.drop_formation
@@ -80,7 +83,7 @@ CREATE TABLE pgautofailover.node
     nodeid               bigserial,
     groupid              int not null,
     nodename             text not null,
-    nodeport             integer not null,
+    nodeport             int not null,
     goalstate            pgautofailover.replication_state not null default 'init',
     reportedstate        pgautofailover.replication_state not null,
     reportedpgisrunning  bool default true,
@@ -91,6 +94,8 @@ CREATE TABLE pgautofailover.node
     health               integer not null default -1,
     healthchecktime      timestamptz not null default now(),
     statechangetime      timestamptz not null default now(),
+    candidate_priority	 int not null default 100,
+    replication_quorum	 bool not null default true,
 
     UNIQUE (nodename, nodeport),
     PRIMARY KEY (nodeid),
@@ -107,13 +112,15 @@ CREATE TABLE pgautofailover.event
     nodeid           bigserial,
     groupid          int not null,
     nodename         text not null,
-    nodeport         integer not null,
+    nodeport         int not null,
     reportedstate    pgautofailover.replication_state not null,
     goalstate        pgautofailover.replication_state not null,
     reportedrepstate text,
     reportedlsn      pg_lsn not null default '0/0',
+    candidatepriority int,
+    replicationquorum bool,
     description      text,
-
+    
     PRIMARY KEY (eventid)
  );
 
@@ -128,15 +135,19 @@ CREATE FUNCTION pgautofailover.register_node
     IN desired_group_id     int default -1,
     IN initial_group_role   pgautofailover.replication_state default 'init',
     IN node_kind            text default 'standalone',
+    IN candidate_priority 	int default 100,
+    IN replication_quorum	bool default true,
    OUT assigned_node_id     int,
    OUT assigned_group_id    int,
-   OUT assigned_group_state pgautofailover.replication_state
+   OUT assigned_group_state pgautofailover.replication_state,
+   OUT assigned_candidate_priority 	int,
+   OUT assigned_replication_quorum  bool
  )
 RETURNS record LANGUAGE C STRICT SECURITY DEFINER
 AS 'MODULE_PATHNAME', $$register_node$$;
 
 grant execute on function
-      pgautofailover.register_node(text,text,int,name,int,pgautofailover.replication_state,text)
+      pgautofailover.register_node(text,text,int,name,int,pgautofailover.replication_state,text, int, bool)
    to autoctl_node;
 
 
@@ -151,9 +162,11 @@ CREATE FUNCTION pgautofailover.node_active
     IN current_pg_is_running  bool default true,
     IN current_lsn			  pg_lsn default '0/0',
     IN current_rep_state      text default '',
-   OUT assigned_node_id       int,
-   OUT assigned_group_id      int,
-   OUT assigned_group_state   pgautofailover.replication_state
+   OUT assigned_node_id       		int,
+   OUT assigned_group_id      		int,
+   OUT assigned_group_state   		pgautofailover.replication_state,
+   OUT assigned_candidate_priority 	int,
+   OUT assigned_replication_quorum  bool
  )
 RETURNS record LANGUAGE C STRICT SECURITY DEFINER
 AS 'MODULE_PATHNAME', $$node_active$$;
@@ -271,7 +284,7 @@ with last_events as
   select eventid, eventtime, formationid,
          nodeid, groupid, nodename, nodeport,
          reportedstate, goalstate,
-         reportedrepstate, reportedlsn, description
+         reportedrepstate, reportedlsn, candidatepriority, replicationquorum, description
     from pgautofailover.event
 order by eventid desc
    limit count
@@ -294,7 +307,7 @@ with last_events as
     select eventid, eventtime, formationid,
            nodeid, groupid, nodename, nodeport,
            reportedstate, goalstate,
-           reportedrepstate, reportedlsn, description
+           reportedrepstate, reportedlsn, candidatepriority, replicationquorum, description
       from pgautofailover.event
      where formationid = formation_id
   order by eventid desc
@@ -319,7 +332,7 @@ with last_events as
     select eventid, eventtime, formationid,
            nodeid, groupid, nodename, nodeport,
            reportedstate, goalstate,
-           reportedrepstate, reportedlsn, description
+           reportedrepstate, reportedlsn, candidatepriority, replicationquorum, description
       from pgautofailover.event
      where formationid = formation_id
        and groupid = group_id
@@ -340,13 +353,16 @@ CREATE FUNCTION pgautofailover.current_state
    OUT group_id             int,
    OUT node_id              bigint,
    OUT current_group_state  pgautofailover.replication_state,
-   OUT assigned_group_state pgautofailover.replication_state
+   OUT assigned_group_state pgautofailover.replication_state,
+   OUT candidate_priority	int,
+   OUT replication_quorum	bool
  )
 RETURNS SETOF record LANGUAGE SQL STRICT
 AS $$
-   select nodename, nodeport, groupid, nodeid, reportedstate, goalstate
-     from pgautofailover.node
-    where formationid = formation_id
+   select nodename, nodeport, groupid, nodeid, reportedstate, goalstate,
+   		candidate_priority, replication_quorum
+   from pgautofailover.node
+   where formationid = formation_id
  order by groupid, nodeid;
 $$;
 
@@ -362,13 +378,16 @@ CREATE FUNCTION pgautofailover.current_state
    OUT group_id             int,
    OUT node_id              bigint,
    OUT current_group_state  pgautofailover.replication_state,
-   OUT assigned_group_state pgautofailover.replication_state
+   OUT assigned_group_state pgautofailover.replication_state,
+   OUT candidate_priority	int,
+   OUT replication_quorum	bool
  )
 RETURNS SETOF record LANGUAGE SQL STRICT
 AS $$
-   select nodename, nodeport, groupid, nodeid, reportedstate, goalstate
-     from pgautofailover.node
-    where formationid = formation_id
+   select nodename, nodeport, groupid, nodeid, reportedstate, goalstate,
+   		  candidate_priority, replication_quorum
+   from pgautofailover.node
+   where formationid = formation_id
       and groupid = group_id
  order by groupid, nodeid;
 $$;
@@ -458,3 +477,21 @@ CREATE TRIGGER disable_secondary_check
 	ON pgautofailover.formation
 	FOR EACH ROW
 	EXECUTE PROCEDURE pgautofailover.update_secondary_check();
+
+CREATE FUNCTION pgautofailover.update_node_replication
+ (
+    IN formation_id					text,
+    IN node_name					text,
+    IN node_port					int,
+    IN candidate_priority			int default NULL,
+    IN replication_quorum			bool default NULL,
+   OUT assigned_candidate_priority	int,
+   OUT assigned_replication_quorum	bool
+ )
+RETURNS record LANGUAGE C STRICT SECURITY DEFINER
+AS 'MODULE_PATHNAME', $$update_node_replication$$;
+
+grant execute on function
+      pgautofailover.update_node_replication(text,text,int, int,bool)
+   to autoctl_node;
+   

@@ -327,6 +327,9 @@ pg_setup_init(PostgresSetup *pgSetup,
 				options->authMethod, NAMEDATALEN);
 	}
 
+	pgSetup->replication_quorum = options->replication_quorum;
+	pgSetup->candidate_priority = options->candidate_priority;
+
 	/*
 	 * And we always double-check with PGDATA/postmaster.pid if we have it, and
 	 * we should have it in the normal/expected case.

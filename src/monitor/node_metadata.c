@@ -143,6 +143,14 @@ TupleToAutoFailoverNode(TupleDesc tupleDescriptor, HeapTuple heapTuple)
 										 Anum_pgautofailover_node_statechangetime,
 										 tupleDescriptor, &isNull);
 
+	Datum candidatePriority = heap_getattr(heapTuple,
+										 Anum_pgautofailover_node_candidate_priority,
+										 tupleDescriptor, &isNull);
+
+	Datum quorum = heap_getattr(heapTuple,
+										 Anum_pgautofailover_node_quorum,
+										 tupleDescriptor, &isNull);
+
 	Oid goalStateOid = DatumGetObjectId(goalState);
 	Oid reportedStateOid = DatumGetObjectId(reportedState);
 
@@ -163,6 +171,8 @@ TupleToAutoFailoverNode(TupleDesc tupleDescriptor, HeapTuple heapTuple)
 	pgAutoFailoverNode->health = DatumGetInt32(health);
 	pgAutoFailoverNode->healthCheckTime = DatumGetTimestampTz(healthCheckTime);
 	pgAutoFailoverNode->stateChangeTime = DatumGetTimestampTz(stateChangeTime);
+	pgAutoFailoverNode->candidatePriority = DatumGetInt32(candidatePriority);
+	pgAutoFailoverNode->replicationQuorum = DatumGetBool(quorum);
 
 	return pgAutoFailoverNode;
 }
@@ -457,6 +467,7 @@ ReportAutoFailoverNodeState(char *nodeName, int nodePort,
 		"walreporttime = CASE $4 WHEN '0/0'::pg_lsn THEN walreporttime ELSE now() END, "
 		"statechangetime = now() WHERE nodename = $5 AND nodeport = $6";
 
+
 	SPI_connect();
 
 	spiStatus = SPI_execute_with_args(updateQuery,
@@ -521,6 +532,51 @@ ReportAutoFailoverNodeHealth(char *nodeName, int nodePort,
 	SPI_finish();
 }
 
+/*
+ * ReportAutoFailoverNodeReplicationState persists the replication properties of
+ * a node.
+ *
+ * We use SPI to automatically handle triggers, function calls, etc.
+ */
+void
+ReportAutoFailoverNodeReplicationState(char *nodeName, int nodePort,
+							int candidatePriority,
+							bool replicationQuorum)
+{
+	Oid argTypes[] = {
+		INT4OID,				 /* candidate_priority */
+		BOOLOID,				 /* repliation_quorum */
+		TEXTOID,				 /* nodename */
+		INT4OID					 /* nodeport */
+	};
+
+	Datum argValues[] = {
+		Int32GetDatum(candidatePriority),	  /* candidate_priority */
+		BoolGetDatum(replicationQuorum),	  /* replication_quorum */
+		CStringGetTextDatum(nodeName),        /* nodename */
+		Int32GetDatum(nodePort)               /* nodeport */
+	};
+	const int argCount = sizeof(argValues) / sizeof(argValues[0]);
+	int spiStatus = 0;
+
+	const char *updateQuery =
+		"UPDATE " AUTO_FAILOVER_NODE_TABLE " SET "
+		"candidate_priority = $1, replication_quorum = $2 "
+		"WHERE nodename = $3 AND nodeport = $4";
+
+	SPI_connect();
+
+	spiStatus = SPI_execute_with_args(updateQuery,
+									  argCount, argTypes, argValues,
+									  NULL, false, 0);
+
+	if (spiStatus != SPI_OK_UPDATE)
+	{
+		elog(ERROR, "could not update " AUTO_FAILOVER_NODE_TABLE);
+	}
+
+	SPI_finish();
+}
 
 /*
  * RemoveAutoFailoverNode removes a node from a AutoFailover formation.

@@ -26,6 +26,8 @@ typedef struct MonitorAssignedState
 	int nodeId;
 	int groupId;
 	NodeState state;
+	int candidatePriority;
+	bool repliationQuorum;
 } MonitorAssignedState;
 
 typedef struct StateNotification
@@ -56,7 +58,7 @@ bool monitor_get_coordinator(Monitor *monitor, char *formation,
 							 NodeAddress *node);
 bool monitor_register_node(Monitor *monitor, char *formation, char *host, int port,
 						   char *dbname, int desiredGroupId, NodeState initialSate,
-						   PgInstanceKind kind,
+						   PgInstanceKind kind, int candidatePriority, bool quorum,
 						   MonitorAssignedState *assignedState);
 bool monitor_node_active(Monitor *monitor,
 						 char *formation, char *host, int port, int nodeId,
@@ -64,6 +66,8 @@ bool monitor_node_active(Monitor *monitor,
 						 bool pgIsRunning,
 						 char *currentLSN, char *pgsrSyncState,
 						 MonitorAssignedState *assignedState);
+bool monitor_update_node_replication(Monitor *monitor, char *formation, char *host, int port,
+									 int *candidate_priority, int *quorum);
 bool monitor_remove(Monitor *monitor, char *host, int port);
 bool monitor_print_state(Monitor *monitor, char *formation, int group);
 bool monitor_print_last_events(Monitor *monitor,

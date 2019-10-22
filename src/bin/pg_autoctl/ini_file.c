@@ -552,8 +552,6 @@ ini_set_setting(const char *filename, IniOption *optionList,
 {
 	IniOption *option = NULL;
 
-	log_debug("Reading configuration from %s", filename);
-
 	if (!read_ini_file(filename, optionList))
 	{
 		log_error("Failed to parse configuration file \"%s\"", filename);

@@ -127,6 +127,28 @@
 							&(config->postgresql_restart_failure_max_retries), \
 							POSTGRESQL_FAILS_TO_START_RETRIES)
 
+#define OPTION_FAILOVER_FORMATION_NUMBER_SYNC_STANDBYS(config) \
+	make_int_option_default("failover", "number_sync_stanbys", \
+							"number_sync_stanbys", \
+							false, \
+							&(config->number_sync_stanbys), \
+							FAILOVER_FORMATION_NUMBER_SYNC_STANBYS)
+
+#define OPTION_FAILOVER_NODE_CANDIDATE_PRIORITY(config) \
+	make_int_option_default("failover", "candidate_priority", \
+							"candidate_priority", \
+							false, \
+							&(config->pgSetup.candidate_priority), \
+							FAILOVER_NODE_CANDIDATE_PRIORITY)
+
+#define OPTION_FAILOVER_NODE_REPLICATION_QUORUM(config) \
+	make_int_option_default("failover", "replication_quorum", \
+							"replication_quorum", \
+							false, \
+							&(config->pgSetup.replication_quorum), \
+							FAILOVER_NODE_REPLICATION_QUORUM)
+
+
 #define SET_INI_OPTIONS_ARRAY(config) \
 	{ \
 		OPTION_AUTOCTL_ROLE(config), \
@@ -151,6 +173,9 @@
 		OPTION_TIMEOUT_PREPARE_PROMOTION_WALRECEIVER(config), \
 		OPTION_TIMEOUT_POSTGRESQL_RESTART_FAILURE_TIMEOUT(config), \
 		OPTION_TIMEOUT_POSTGRESQL_RESTART_FAILURE_MAX_RETRIES(config), \
+		OPTION_FAILOVER_FORMATION_NUMBER_SYNC_STANDBYS(config), \
+		OPTION_FAILOVER_NODE_CANDIDATE_PRIORITY(config), \
+		OPTION_FAILOVER_NODE_REPLICATION_QUORUM(config), \
 		INI_OPTION_LAST \
 	}
 
@@ -358,6 +383,9 @@ keeper_config_log_settings(KeeperConfig config)
 	log_debug("postgresql.dbname: %s", config.pgSetup.dbname);
 	log_debug("postgresql.host: %s", config.pgSetup.pghost);
 	log_debug("postgresql.port: %d", config.pgSetup.pgport);
+	log_debug("postgresql.candidate_priority: %d", config.pgSetup.candidate_priority);
+	log_debug("postgresql.quorum: %d", config.pgSetup.replication_quorum);
+
 
 	log_debug("replication.replication_slot_name: %s",
 			  config.replication_slot_name);
