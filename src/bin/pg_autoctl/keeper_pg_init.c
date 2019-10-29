@@ -422,10 +422,11 @@ reach_initial_state(Keeper *keeper)
 					 * In test environements allow nodes from the same network
 					 * to connect. The network is discovered automatically.
 					 */
-					(void) pghba_enable_lan_cidr(&keeper->postgres.sqlClient,
+					(void) pghba_enable_lan_cidr(config.pgSetup.pgConfigPath.hba,
 												 HBA_DATABASE_ALL, NULL,
 												 keeper->config.nodename,
-												 NULL, DEFAULT_AUTH_METHOD, NULL);
+												 NULL, DEFAULT_AUTH_METHOD,
+												 &keeper->postgres.sqlClient);
 
 				}
 			}
@@ -813,13 +814,13 @@ create_database_and_extension(Keeper *keeper)
 	 */
 	if (IS_CITUS_INSTANCE_KIND(postgres->pgKind))
 	{
-		(void) pghba_enable_lan_cidr(&initPostgres.sqlClient,
+		(void) pghba_enable_lan_cidr(pgSetup->pgConfigPath.hba,
 									 HBA_DATABASE_DBNAME,
 									 pgSetup->dbname,
 									 config->nodename,
 									 pg_setup_get_username(pgSetup),
 									 "trust",
-									 NULL);
+									 &initPostgres.sqlClient);
 	}
 
 	/*
