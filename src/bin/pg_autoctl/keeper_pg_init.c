@@ -418,16 +418,23 @@ reach_initial_state(Keeper *keeper)
 			{
 				if (getenv("PG_REGRESS_SOCK_DIR") != NULL)
 				{
+					char *hbaFilePath =
+						keeper->postgres.postgresSetup.pgConfigPath.hba;
+
 					/*
 					 * In test environements allow nodes from the same network
 					 * to connect. The network is discovered automatically.
 					 */
-					(void) pghba_enable_lan_cidr(config.pgSetup.pgConfigPath.hba,
-												 HBA_DATABASE_ALL, NULL,
-												 keeper->config.nodename,
-												 NULL, DEFAULT_AUTH_METHOD,
-												 &keeper->postgres.sqlClient);
-
+					if (!pghba_enable_lan_cidr(hbaFilePath,
+											   HBA_DATABASE_ALL, NULL,
+											   keeper->config.nodename,
+											   NULL, DEFAULT_AUTH_METHOD,
+											   &keeper->postgres.sqlClient))
+					{
+						log_fatal("Failed to grant connection privileges to "
+								  "local area network, see above for details");
+						return false;
+					}
 				}
 			}
 			else
@@ -814,13 +821,20 @@ create_database_and_extension(Keeper *keeper)
 	 */
 	if (IS_CITUS_INSTANCE_KIND(postgres->pgKind))
 	{
-		(void) pghba_enable_lan_cidr(pgSetup->pgConfigPath.hba,
-									 HBA_DATABASE_DBNAME,
-									 pgSetup->dbname,
-									 config->nodename,
-									 pg_setup_get_username(pgSetup),
-									 "trust",
-									 &initPostgres.sqlClient);
+		char *hbaFilePath = initPostgres.postgresSetup.pgConfigPath.hba;
+
+		if (!pghba_enable_lan_cidr(hbaFilePath,
+								   HBA_DATABASE_DBNAME,
+								   pgSetup->dbname,
+								   config->nodename,
+								   pg_setup_get_username(pgSetup),
+								   "trust",
+								   &initPostgres.sqlClient))
+		{
+			log_fatal("Failed to grant connection privileges to "
+					  "local area network, see above for details");
+			return false;
+		}
 	}
 
 	/*
