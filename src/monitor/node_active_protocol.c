@@ -87,6 +87,8 @@ register_node(PG_FUNCTION_ARGS)
 	char *nodeKind = text_to_cstring(nodeKindText);
 	FormationKind expectedFormationKind =
 		FormationKindFromNodeKindString(nodeKind);
+	int candidatePriority = PG_GETARG_INT32(7);
+	bool replicationQuorum = PG_GETARG_BOOL(8);
 
 	AutoFailoverFormation *formation = NULL;
 	AutoFailoverNode *pgAutoFailoverNode = NULL;
@@ -107,6 +109,8 @@ register_node(PG_FUNCTION_ARGS)
 	currentNodeState.replicationState =
 		EnumGetReplicationState(currentReplicationStateOid);
 	currentNodeState.reportedLSN = 0;
+	currentNodeState.candidatePriority = candidatePriority;
+	currentNodeState.replicationQuorum = replicationQuorum;
 
 	LockFormation(formationId, ExclusiveLock);
 
@@ -434,7 +438,8 @@ JoinAutoFailoverFormation(AutoFailoverFormation *formation,
 	}
 
 	AddAutoFailoverNode(formation->formationId, groupId, nodeName, nodePort,
-						initialState, currentNodeState->replicationState);
+						initialState, currentNodeState->replicationState,
+						currentNodeState->candidatePriority, currentNodeState->replicationQuorum);
 
 	currentNodeState->groupId = groupId;
 }
@@ -1038,7 +1043,14 @@ update_node_replication(PG_FUNCTION_ARGS)
 
 	if (currentNode == NULL)
 	{
-		PG_RETURN_NULL();
+		ereport(ERROR, (errmsg("node %s:%d is not registered",
+							   nodeName, nodePort)));
+	}
+
+	if (strcmp(formationId, currentNode->formationId) != 0)
+	{
+		ereport(ERROR, (errmsg("node %s:%d does not belong to formation %s",
+							   nodeName, nodePort, formationId)));
 	}
 
 	LockFormation(formationId, ShareLock);
@@ -1083,8 +1095,6 @@ update_node_replication(PG_FUNCTION_ARGS)
 						  message);
 
 	}
-
-
 
 	PG_RETURN_NULL();
 }

@@ -74,7 +74,6 @@ CommandLine create_postgres_command =
 				 "  --formation                   pg_auto_failover formation\n"
 				 "  --monitor                     pg_auto_failover Monitor Postgres URL\n"
 				 "  --auth                        authentication method for connections from monitor\n"
-				 "  --number-sync-stanbys         minimum number of standbys to confirm write. applicable to creating the first node of a formation.\n"
 				 "  --candidate-priority          priority of the node to be promoted to become primary\n"
 				 "  --enable-replication-quorum   node participates in write quorum\n"
 				 "  --disable-replication-quorum  node does not participate in write quorum\n"
@@ -209,9 +208,8 @@ cli_create_postgres_getopts(int argc, char **argv)
 		{ "monitor", required_argument, NULL, 'm' },
 		{ "allow-removing-pgdata", no_argument, NULL, 'R' },
 		{ "help", no_argument, NULL, 0 },
-		{ "number-sync-stanbys", required_argument, NULL, 'S'},
-		{ "enable-replication-quorum", no_argument, NULL, 'Q'},
-		{ "disable-replication-quorum", no_argument, NULL, 'q'},
+		{ "enable-replication-quorum", no_argument, NULL, 'q'},
+		{ "disable-replication-quorum", no_argument, NULL, 'Q'},
 		{ "candidate-priority", required_argument, NULL, 'P'},
 		{ "replication-quorum", required_argument, NULL, 'r'},
 		{ NULL, 0, NULL, 0 }
@@ -219,7 +217,7 @@ cli_create_postgres_getopts(int argc, char **argv)
 
 	int optind =
 		cli_create_node_getopts(argc, argv,
-								long_options, "C:D:h:p:l:U:A:d:n:f:m:RQqP:r:",
+								long_options, "C:D:h:p:l:U:A:d:n:f:m:RqQP:r:",
 								&options);
 
 	/* publish our option parsing in the global variable */

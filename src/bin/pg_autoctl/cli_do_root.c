@@ -245,12 +245,16 @@ keeper_cli_keeper_setup_getopts(int argc, char **argv)
 		{ "monitor", required_argument, NULL, 'm' },
 		{ "allow-removing-pgdata", no_argument, NULL, 'R' },
 		{ "help", no_argument, NULL, 0 },
+		{ "enable-replication-quorum", no_argument, NULL, 'Q'},
+		{ "disable-replication-quorum", no_argument, NULL, 'q'},
+		{ "candidate-priority", required_argument, NULL, 'P'},
+		{ "replication-quorum", required_argument, NULL, 'r'},
 		{ NULL, 0, NULL, 0 }
 	};
 
 	int optind =
 		cli_create_node_getopts(argc, argv,
-								long_options, "C:D:h:p:l:y:U:A:d:n:f:g:m:R",
+								long_options, "C:D:h:p:l:U:A:d:n:f:m:RQqP:r:",
 								&options);
 
 	/* publish our option parsing in the global variable */

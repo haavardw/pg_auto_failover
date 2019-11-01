@@ -32,13 +32,14 @@ CommandLine create_formation_command =
 				 "Create a new formation on the pg_auto_failover monitor",
 				 " [ --pgdata --formation --kind --dbname --with-secondary " \
 				 "--without-secondary ] ",
-				 "  --pgdata            path to data directory	 \n" \
-				 "  --formation         name of the formation to create \n" \
-				 "  --kind              formation kind, either \"pgsql\" or \"citus\" \n" \
-				 "  --dbname            name for postgres database to use in this formation \n" \
-				 "  --enable-secondary  create a formation that has multiple nodes that can be \n" \
-				 "                      used for fail over when others have issues \n" \
-				 "  --disable-secondary create a citus formation without nodes to fail over to \n",
+				 "  --pgdata              path to data directory	 \n" \
+				 "  --formation           name of the formation to create \n" \
+				 "  --kind                formation kind, either \"pgsql\" or \"citus\" \n" \
+				 "  --dbname              name for postgres database to use in this formation \n" \
+				 "  --enable-secondary    create a formation that has multiple nodes that can be \n" \
+				 "                        used for fail over when others have issues \n" \
+				 "  --disable-secondary   create a citus formation without nodes to fail over to \n" \
+				 "  --number-sync-stanbys minimum number of standbys to confirm write \n",
 				 keeper_cli_formation_create_getopts,
 				 keeper_cli_formation_create);
 
@@ -145,6 +146,7 @@ keeper_cli_formation_create_getopts(int argc, char **argv)
 		{ "enable-secondary", no_argument, NULL, 's' },
 		{ "disable-secondary", no_argument, NULL, 'S' },
 		{ "help", no_argument, NULL, 'h' },
+		{ "number-sync-stanbys", required_argument, NULL, 'r' },
 		{ NULL, 0, NULL, 0 }
 	};
 
@@ -199,7 +201,21 @@ keeper_cli_formation_create_getopts(int argc, char **argv)
 				log_trace("--disable-secondary");
 				break;
 			}
+			case 'r':
+			{
+				/* { "number-sync-stanbys", required_argument, NULL, 'S'} */
+				int numberSyncStanbys = strtol(optarg, NULL, 10);
 
+				if (errno == EINVAL|| numberSyncStanbys < 0)
+				{
+					log_fatal("--number-sync-stanbys argument is not valid."
+							  " Use a non-negative integer value.");
+					exit(EXIT_CODE_BAD_ARGS);
+				}
+				options.numberSyncStandbys = numberSyncStanbys;
+				log_trace("--number-sync-stanbys %d", numberSyncStanbys);
+				break;
+			}
 			default:
 			{
 				/* getopt_long already wrote an error message */
@@ -271,7 +287,8 @@ keeper_cli_formation_create(int argc, char **argv)
 								  config.formation,
 								  config.formationKind,
 								  config.dbname,
-								  config.formationHasSecondary))
+								  config.formationHasSecondary,
+								  config.numberSyncStandbys))
 	{
 		/* errors have already been logged */
 		exit(EXIT_CODE_MONITOR);

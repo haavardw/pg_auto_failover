@@ -74,7 +74,7 @@ bool monitor_print_last_events(Monitor *monitor,
 							   char *formation, int group, int count);
 
 bool monitor_create_formation(Monitor *monitor, char *formation, char *kind,
-							  char *dbname, bool ha);
+							  char *dbname, bool ha, int numberSyncStandbys);
 bool monitor_enable_secondary_for_formation(Monitor *monitor, const char *formation);
 bool monitor_disable_secondary_for_formation(Monitor *monitor, const char *formation);
 bool monitor_drop_formation(Monitor *monitor, char *formation);

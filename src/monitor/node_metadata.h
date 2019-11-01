@@ -38,7 +38,7 @@
 #define Anum_pgautofailover_node_healthchecktime 14
 #define Anum_pgautofailover_node_statechangetime 15
 #define Anum_pgautofailover_node_candidate_priority 16
-#define Anum_pgautofailover_node_quorum 17
+#define Anum_pgautofailover_node_replication_quorum 17
 
 
 /* pg_stat_replication.sync_state: "sync", "async", "quorum", "potential" */
@@ -88,7 +88,9 @@ extern AutoFailoverNode * TupleToAutoFailoverNode(TupleDesc tupleDescriptor,
 extern int AddAutoFailoverNode(char *formationId, int groupId,
 							   char *nodeName, int nodePort,
 							   ReplicationState goalState,
-							   ReplicationState reportedState);
+							   ReplicationState reportedState,
+							   int candidatePriority,
+							   bool replicationQuorum);
 extern void SetNodeGoalState(char *nodeName, int nodePort,
 							 ReplicationState goalState);
 extern void ReportAutoFailoverNodeState(char *nodeName, int nodePort,

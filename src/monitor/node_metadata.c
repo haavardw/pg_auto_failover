@@ -147,8 +147,8 @@ TupleToAutoFailoverNode(TupleDesc tupleDescriptor, HeapTuple heapTuple)
 										 Anum_pgautofailover_node_candidate_priority,
 										 tupleDescriptor, &isNull);
 
-	Datum quorum = heap_getattr(heapTuple,
-										 Anum_pgautofailover_node_quorum,
+	Datum replicationQuorum = heap_getattr(heapTuple,
+										 Anum_pgautofailover_node_replication_quorum,
 										 tupleDescriptor, &isNull);
 
 	Oid goalStateOid = DatumGetObjectId(goalState);
@@ -172,7 +172,7 @@ TupleToAutoFailoverNode(TupleDesc tupleDescriptor, HeapTuple heapTuple)
 	pgAutoFailoverNode->healthCheckTime = DatumGetTimestampTz(healthCheckTime);
 	pgAutoFailoverNode->stateChangeTime = DatumGetTimestampTz(stateChangeTime);
 	pgAutoFailoverNode->candidatePriority = DatumGetInt32(candidatePriority);
-	pgAutoFailoverNode->replicationQuorum = DatumGetBool(quorum);
+	pgAutoFailoverNode->replicationQuorum = DatumGetBool(replicationQuorum);
 
 	return pgAutoFailoverNode;
 }
@@ -321,7 +321,9 @@ OtherNodeInGroup(AutoFailoverNode *pgAutoFailoverNode)
 int
 AddAutoFailoverNode(char *formationId, int groupId, char *nodeName, int nodePort,
 					ReplicationState goalState,
-					ReplicationState reportedState)
+					ReplicationState reportedState,
+					int candidatePriority,
+					bool replicationQuorum)
 {
 	Oid goalStateOid = ReplicationStateGetEnum(goalState);
 	Oid reportedStateOid = ReplicationStateGetEnum(reportedState);
@@ -333,16 +335,20 @@ AddAutoFailoverNode(char *formationId, int groupId, char *nodeName, int nodePort
 		TEXTOID, /* nodename */
 		INT4OID, /* nodeport */
 		replicationStateTypeOid, /* goalstate */
-		replicationStateTypeOid	 /* reportedstate */
+		replicationStateTypeOid, /* reportedstate */
+		INT4OID, /* candidate_priority */
+		BOOLOID  /* replication_quorum */
 	};
 
 	Datum argValues[] = {
-		CStringGetTextDatum(formationId),  /* formationid */
-		Int32GetDatum(groupId),			   /* groupid */
-		CStringGetTextDatum(nodeName),     /* nodename */
-		Int32GetDatum(nodePort),		   /* nodeport */
-		ObjectIdGetDatum(goalStateOid),	   /* goalstate */
-		ObjectIdGetDatum(reportedStateOid) /* reportedstate */
+		CStringGetTextDatum(formationId),   /* formationid */
+		Int32GetDatum(groupId),			    /* groupid */
+		CStringGetTextDatum(nodeName),      /* nodename */
+		Int32GetDatum(nodePort),		    /* nodeport */
+		ObjectIdGetDatum(goalStateOid),	    /* goalstate */
+		ObjectIdGetDatum(reportedStateOid), /* reportedstate */
+		Int32GetDatum(candidatePriority),   /* candidate_priority */
+		BoolGetDatum(replicationQuorum)	/* replication_quorum */
 	};
 
 	const int argCount = sizeof(argValues) / sizeof(argValues[0]);
@@ -351,8 +357,8 @@ AddAutoFailoverNode(char *formationId, int groupId, char *nodeName, int nodePort
 
 	const char *insertQuery =
 		"INSERT INTO " AUTO_FAILOVER_NODE_TABLE
-		" (formationid, groupid, nodename, nodeport, goalstate, reportedstate)"
-		" VALUES ($1, $2, $3, $4, $5, $6) RETURNING nodeid";
+		" (formationid, groupid, nodename, nodeport, goalstate, reportedstate, candidate_priority, replication_quorum)"
+		" VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING nodeid";
 
 	SPI_connect();
 

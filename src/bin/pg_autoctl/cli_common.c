@@ -225,30 +225,14 @@ cli_create_node_getopts(int argc, char **argv,
 				log_trace("--allow-removing-pgdata");
 				break;
 			}
-			case 'S':
-			{
-				/* { "number-sync-stanbys", required_argument, NULL, 'S'} */
-				int numberSyncStanbys = strtol(optarg, NULL, 10);
-
-				if (errno == EINVAL|| numberSyncStanbys < 0)
-				{
-					log_fatal("--number-sync-stanbys argument is not valid."
-							  " Use a non-negative integer value.");
-					exit(EXIT_CODE_BAD_ARGS);
-				}
-
-				LocalOptionConfig.number_sync_stanbys = numberSyncStanbys;
-				log_trace("--replication-quorum %d", numberSyncStanbys);
-				break;
-			}
-			case 'Q':
+			case 'q':
 			{
 				/* { "enable-replication-quorum", no_argument, NULL, 'Q'} */
 				log_trace("--enable-replication-quorum");
 				LocalOptionConfig.pgSetup.replication_quorum = 1;
 				break;
 			}
-			case 'q':
+			case 'Q':
 			{
 				/* { "disable-replication-quorum", no_argument, NULL, 'q'} */
 				log_trace("--disable-replication-quorum");
@@ -267,7 +251,7 @@ cli_create_node_getopts(int argc, char **argv,
 				}
 
 				LocalOptionConfig.pgSetup.candidate_priority = candidatePriority;
-				log_trace("--failover-priority %d", candidatePriority);
+				log_trace("--candidate-priority %d", candidatePriority);
 				break;
 			}
 			case 'r':

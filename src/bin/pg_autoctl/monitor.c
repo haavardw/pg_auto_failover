@@ -861,19 +861,20 @@ printLastEvents(void *ctx, PGresult *result)
  */
 bool
 monitor_create_formation(Monitor *monitor, char *formation, char *kind, char *dbname,
-						 bool hasSecondary)
+						 bool hasSecondary, int numberSyncStandbys)
 {
 	PGSQL *pgsql = &monitor->pgsql;
 	const char *sql =
-		"SELECT * FROM pgautofailover.create_formation($1, $2, $3, $4)";
-	int paramCount = 4;
-	Oid paramTypes[4] = { TEXTOID, TEXTOID, TEXTOID, BOOLOID };
-	const char *paramValues[4];
+		"SELECT * FROM pgautofailover.create_formation($1, $2, $3, $4, $5)";
+	int paramCount = 5;
+	Oid paramTypes[5] = { TEXTOID, TEXTOID, TEXTOID, BOOLOID, INT4OID };
+	const char *paramValues[5];
 
 	paramValues[0] = formation;
 	paramValues[1] = kind;
 	paramValues[2] = dbname;
 	paramValues[3] = hasSecondary ? "true" : "false";
+	paramValues[4] = intToString(numberSyncStandbys).strValue;
 
 	if (!pgsql_execute_with_params(pgsql, sql,
 								   paramCount, paramTypes, paramValues,

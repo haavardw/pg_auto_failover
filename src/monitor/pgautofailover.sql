@@ -76,6 +76,22 @@ AS 'MODULE_PATHNAME', $$drop_formation$$;
 
 grant execute on function pgautofailover.drop_formation(text) to autoctl_node;
 
+CREATE FUNCTION pgautofailover.update_formation
+ (
+    IN formation_id  		text,
+    IN number_sync_standbys int DEFAULT NULL,
+   OUT formation_id  		text,
+   OUT kind          		text,
+   OUT dbname        		name,
+   OUT opt_secondary 		bool,
+   OUT number_sync_standbys int
+ )
+RETURNS record LANGUAGE C STRICT SECURITY DEFINER
+AS 'MODULE_PATHNAME', $$update_formation$$;
+
+grant execute on function
+      pgautofailover.update_formation(text, int)
+   to autoctl_node;
 
 CREATE TABLE pgautofailover.node
  (
